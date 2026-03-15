@@ -4,18 +4,17 @@ require("hardhat-gas-reporter");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.19",
-  settings: {
-    optimizer: {
-      enabled: true,
-      runs: 1, // the smaller it is the more optimized it is
-    },
-  },
   gasReporter: {
     currency: 'CHF',
     gasPrice: 21
   },
-  allowUnlimitedContractSize: true,
+  networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+      // So bridge tests see block.timestamp < timelock (1701817200); ALBA tests run first in file
+      initialDate: "2023-12-05T22:56:00.000Z",
+    },
+  },
   solidity: {
     compilers: [
       {

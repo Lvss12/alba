@@ -5,49 +5,39 @@ const { ethers } = require("hardhat");
 const EthCrypto = require('eth-crypto');
 const { sha256 } = require("ethers/lib/utils");
 
+async function resetChainAndDeploy(blockTimestamp) {
+    await ethers.provider.send("hardhat_reset", [{ blockTimestamp }]);
+    const entropyP = Buffer.from('ciaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociao', 'utf-8');
+    const identityP = EthCrypto.createIdentity(entropyP);
+    const addressP = EthCrypto.publicKey.toAddress(EthCrypto.publicKeyByPrivateKey(identityP.privateKey));
+    const entropyV = Buffer.from('ciaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaohallo', 'utf-8');
+    const identityV = EthCrypto.createIdentity(entropyV);
+    const addressV = EthCrypto.publicKey.toAddress(EthCrypto.publicKeyByPrivateKey(identityV.privateKey));
+    const ALBAContractFactory = await ethers.getContractFactory("ALBA");
+    const ALBA = await ALBAContractFactory.deploy(addressP, addressV);
+    await ALBA.deployed();
+    const [prover, verifier] = await ethers.getSigners();
+    await prover.sendTransaction({ to: ALBA.address, value: ethers.utils.parseEther("0.5") });
+    await verifier.sendTransaction({ to: ALBA.address, value: ethers.utils.parseEther("0.5") });
+    return ALBA;
+}
+
 describe("ALBA", function(account) {
-    let ALBAContractFactory;
     let ALBA;
 
     beforeEach(async () => {
-
-        // create identities for Prover and Verifier
-        // const [prover, verifier] = await ethers.getSigners(); // returns an array of addresses, I keep only the first two
-
-        //const proverBalance = await ethers.provider.getBalance(prover.address); // 10000000000000000000000
-        //const verifierBalance = await ethers.provider.getBalance(verifier.address); // 10000000000000000000000
-
-        //create identity P
         const entropyP = Buffer.from('ciaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociao', 'utf-8');
-        const identityP = EthCrypto.createIdentity(entropyP); //create identity
-        //console.log(identityP);
-        const publicKeyP = EthCrypto.publicKeyByPrivateKey(identityP.privateKey);
-        const addressP = EthCrypto.publicKey.toAddress(publicKeyP);
-        //create identity V
+        const identityP = EthCrypto.createIdentity(entropyP);
+        const addressP = EthCrypto.publicKey.toAddress(EthCrypto.publicKeyByPrivateKey(identityP.privateKey));
         const entropyV = Buffer.from('ciaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaociaohallo', 'utf-8');
-        const identityV = EthCrypto.createIdentity(entropyV); //create identity
-        const publicKeyV = EthCrypto.publicKeyByPrivateKey(identityV.privateKey);
-        const addressV = EthCrypto.publicKey.toAddress(publicKeyV); 
-
-
-        ALBAContractFactory = await ethers.getContractFactory("ALBA");
+        const identityV = EthCrypto.createIdentity(entropyV);
+        const addressV = EthCrypto.publicKey.toAddress(EthCrypto.publicKeyByPrivateKey(identityV.privateKey));
+        const ALBAContractFactory = await ethers.getContractFactory("ALBA");
         ALBA = await ALBAContractFactory.deploy(addressP, addressV);
         await ALBA.deployed();
-
         const [prover, verifier] = await ethers.getSigners();
-
-        // Prover locks coins
-        await prover.sendTransaction({
-            to: ALBA.address,
-            value: ethers.utils.parseEther("0.5"), // Sends 0.5 ether
-        });
-
-        // Verifier locks coins
-        await verifier.sendTransaction({
-            to: ALBA.address,
-            value: ethers.utils.parseEther("0.5"), // Sends 0.5 ether
-        });
-
+        await prover.sendTransaction({ to: ALBA.address, value: ethers.utils.parseEther("0.5") });
+        await verifier.sendTransaction({ to: ALBA.address, value: ethers.utils.parseEther("0.5") });
     });
 
     describe("Channel basic lifecycle", function () {
@@ -316,6 +306,8 @@ describe("ALBA", function(account) {
         }) 
 
         it("Revert if current time is smaller than the time in the timelock. Event: Proof verification failed", async function () {
+            // Chain time must be >= smallTimelock so proof is rejected (timelock expired)
+            ALBA = await resetChainAndDeploy(Number(testdata.smallTimelock) + 1000);
 
             let txSetup = await ALBA.setup(testdata.fundingTxId, testdata.fundingTx_LockingScript, testdata.fundingTxIndex, testdata.sighash_all, testdata.pkProverUnprefixedUncompressed, testdata.pkVerifierUnprefixedUncompressed, testdata.smallTimelock, testdata.RelTimelock, testdata.setupSigPSmallTimelock, testdata.setupSigVSmallTimelock);
 
@@ -430,6 +422,8 @@ describe("ALBA", function(account) {
         }) 
 
         it("Revert if current time is smaller than the time in the timelock. Event: Dispute not opened", async function () {
+            // Chain time must be >= smallTimelock so dispute is rejected (timelock expired)
+            ALBA = await resetChainAndDeploy(Number(testdata.smallTimelock) + 1000);
 
             let txSetup = await ALBA.setup(testdata.fundingTxId, testdata.fundingTx_LockingScript, testdata.fundingTxIndex, testdata.sighash_all, testdata.pkProverUnprefixedUncompressed, testdata.pkVerifierUnprefixedUncompressed, testdata.smallTimelock, testdata.RelTimelock, testdata.setupSigPSmallTimelock, testdata.setupSigVSmallTimelock);
 
