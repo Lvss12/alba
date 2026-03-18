@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx hardhat test",
+    "test:alba": "npx hardhat test --grep \"ALBA\"",
+    "sepolia:deploy": "npx hardhat run scripts/deploy-sepolia.js --network sepolia",
+    "sepolia:channel-demo": "npx hardhat run scripts/channel-demo-sepolia.js --network sepolia"
   },
   "author": "",
   "license": "ISC",
@@ -20,6 +23,7 @@
   },
   "dependencies": {
     "crypto-js": "^4.2.0",
+    "dotenv": "^16.6.1",
     "eth-crypto": "^2.6.0"
   }
 }
