@@ -1,5 +1,7 @@
 # ALBA 合约结构拆分指南（解决 `max code size exceeded`）
 
+> 合并友好策略：优先新增文件（facets + split scripts），避免直接修改原始 `ALBA.sol` 与现有 Sepolia 脚本。
+
 > 目标：在**不改变功能**的前提下，把超大的单体 `ALBA.sol` 拆成可部署到 Sepolia 的模块。
 
 ## 1. 拆分原则
