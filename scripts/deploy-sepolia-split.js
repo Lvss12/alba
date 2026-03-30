@@ -23,7 +23,7 @@ async function main() {
   await closeFacet.deployed();
   console.log("ALBACloseFacet deployed to:", closeFacet.address);
 
-  const ALBA = await ethers.getContractFactory("ALBASplit");
+  const ALBA = await ethers.getContractFactory("ALBASplitV2");
   const alba = await ALBA.deploy(
     PROVER_ADDRESS,
     VERIFIER_ADDRESS,
@@ -33,7 +33,7 @@ async function main() {
   );
   await alba.deployed();
 
-  console.log("ALBASplit deployed to:", alba.address);
+  console.log("ALBASplitV2 deployed to:", alba.address);
   console.log("prover:", PROVER_ADDRESS);
   console.log("verifier:", VERIFIER_ADDRESS);
 }

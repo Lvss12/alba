@@ -24,9 +24,9 @@ async function main() {
 
   console.log("Prover:", prover.address);
   console.log("Verifier:", verifier.address);
-  console.log("ALBASplit:", albaAddress);
+  console.log("ALBASplitV2:", albaAddress);
 
-  const alba = await ethers.getContractAt("ALBASplit", albaAddress);
+  const alba = await ethers.getContractAt("ALBASplitV2", albaAddress);
 
   const depP = ethers.utils.parseEther("0.5");
   const depV = ethers.utils.parseEther("0.5");
