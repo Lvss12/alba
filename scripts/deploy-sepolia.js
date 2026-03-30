@@ -8,11 +8,16 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deployer:", deployer.address);
 
-  const ALBA = await ethers.getContractFactory("ALBA");
-  const alba = await ALBA.deploy(PROVER_ADDRESS, VERIFIER_ADDRESS);
+  const ChannelFacet = await ethers.getContractFactory("ALBAChannelFacet");
+  const channelFacet = await ChannelFacet.deploy();
+  await channelFacet.deployed();
+  console.log("ALBAChannelFacet deployed to:", channelFacet.address);
+
+  const ALBA = await ethers.getContractFactory("ALBASplit");
+  const alba = await ALBA.deploy(PROVER_ADDRESS, VERIFIER_ADDRESS, channelFacet.address);
   await alba.deployed();
 
-  console.log("ALBA deployed to:", alba.address);
+  console.log("ALBASplit deployed to:", alba.address);
   console.log("prover:", PROVER_ADDRESS);
   console.log("verifier:", VERIFIER_ADDRESS);
 }
@@ -21,4 +26,3 @@ main().catch((err) => {
   console.error(err);
   process.exitCode = 1;
 });
-
