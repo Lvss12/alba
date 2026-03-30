@@ -8,11 +8,32 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deployer:", deployer.address);
 
-  const ALBA = await ethers.getContractFactory("ALBA");
-  const alba = await ALBA.deploy(PROVER_ADDRESS, VERIFIER_ADDRESS);
+  const OpenFacet = await ethers.getContractFactory("ALBAOpenFacet");
+  const openFacet = await OpenFacet.deploy();
+  await openFacet.deployed();
+  console.log("ALBAOpenFacet deployed to:", openFacet.address);
+
+  const UpdateFacet = await ethers.getContractFactory("ALBAUpdateFacet");
+  const updateFacet = await UpdateFacet.deploy();
+  await updateFacet.deployed();
+  console.log("ALBAUpdateFacet deployed to:", updateFacet.address);
+
+  const CloseFacet = await ethers.getContractFactory("ALBACloseFacet");
+  const closeFacet = await CloseFacet.deploy();
+  await closeFacet.deployed();
+  console.log("ALBACloseFacet deployed to:", closeFacet.address);
+
+  const ALBA = await ethers.getContractFactory("ALBASplit");
+  const alba = await ALBA.deploy(
+    PROVER_ADDRESS,
+    VERIFIER_ADDRESS,
+    openFacet.address,
+    updateFacet.address,
+    closeFacet.address
+  );
   await alba.deployed();
 
-  console.log("ALBA deployed to:", alba.address);
+  console.log("ALBASplit deployed to:", alba.address);
   console.log("prover:", PROVER_ADDRESS);
   console.log("verifier:", VERIFIER_ADDRESS);
 }
@@ -21,4 +42,3 @@ main().catch((err) => {
   console.error(err);
   process.exitCode = 1;
 });
-

@@ -6,8 +6,8 @@ require("dotenv").config();
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   gasReporter: {
-    currency: 'CHF',
-    gasPrice: 21
+    currency: "CHF",
+    gasPrice: 21,
   },
   networks: {
     hardhat: {
@@ -21,25 +21,17 @@ module.exports = {
     },
   },
   solidity: {
-    compilers: [
-      {
-        version: "0.8.9",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 1,
-          },
-        },
+    version: "0.8.9",
+    settings: {
+      // Keep IR disabled because this codebase fails with a Yul stack-depth error on 0.8.9.
+      viaIR: false,
+      optimizer: {
+        enabled: true,
+        runs: 1,
       },
-      {
-        version: "0.8.9",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 1,
-          },
-        },
-      }
-    ]
+      metadata: {
+        bytecodeHash: "none",
+      },
+    },
   },
 };
