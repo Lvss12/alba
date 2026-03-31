@@ -27,7 +27,7 @@ async function main() {
   console.log("Verifier:", verifier.address);
   console.log("ALBA:", albaAddress);
 
-  const alba = await ethers.getContractAt("ALBASplit", albaAddress);
+  const alba = await ethers.getContractAt("ALBA", albaAddress);
 
   // 1) Lock funds (each side deposits)
   const depP = ethers.utils.parseEther("0.5");

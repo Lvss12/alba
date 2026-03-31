@@ -80,7 +80,7 @@ contract ALBA {
     uint256 totalSupply;
 
     modifier onlyParticipants() {
-        require(msg.sender == prover || msg.sender == verifier, "E1");
+        require(msg.sender == prover || msg.sender == verifier, "Only channel participants");
         _;
     }
 
@@ -93,7 +93,7 @@ contract ALBA {
     receive() external payable {
 
         // React to receiving ether
-        require(fundsSettled == false, "E2");
+        require(fundsSettled == false, "Funds already settled");
         initBalEth[msg.sender] = msg.value; 
         totalSupply = totalSupply + msg.value;
         state.coinsLocked = true;
@@ -111,7 +111,7 @@ contract ALBA {
                    uint256 timelockDisp, 
                    bytes memory sigP, 
                    bytes memory sigV) external {
-        require(mode != OperationMode.Channel, "E3");
+        require(mode != OperationMode.Channel, "Channel mode active");
         
         // populate protocol specifics
         bridge.fundTxId = fundTxId;
@@ -127,7 +127,7 @@ contract ALBA {
 
         // verify signatures over setup data
         bytes memory message = bytes.concat(BytesLib.toBytes(bridge.fundTxId), bridge.fundTxScript, BytesLib.toBytesNew(bridge.fundTxIndx), bridge.sighash, bridge.pkPUncompr, bridge.pkVUncompr, BytesLib.uint256ToBytes(bridge.timelock), BytesLib.uint256ToBytes(bridge.timelockDisp));
-        require(prover == ECDSA.recover(sha256(message), abi.encodePacked(sigP)) && verifier == ECDSA.recover(sha256(message), abi.encodePacked(sigV)), "E4");
+        require(prover == ECDSA.recover(sha256(message), abi.encodePacked(sigP)) && verifier == ECDSA.recover(sha256(message), abi.encodePacked(sigV)), "Invalid signatures over setup data");
 
         // populate state variables
         state.proofSubmitted = false;
@@ -140,7 +140,7 @@ contract ALBA {
 
     function submitProof(bytes memory CT_P_unlocked,                    
                          bytes memory CT_V_unlocked) external {
-        require(mode != OperationMode.Channel, "E3");
+        require(mode != OperationMode.Channel, "Channel mode active");
         mode = OperationMode.Bridge;
 
         // check that current time is smaller than the timeout defined in Setup, and check proof has not yet been submitted, nor dispute raised
@@ -150,8 +150,8 @@ contract ALBA {
                                                   state.disputeOpened == false)) {
 
             // check transactions are not locked
-            require(ParseBTCLib.getTimelock(CT_P_unlocked) == bytes4(0), "E5");
-            require(ParseBTCLib.getTimelock(CT_V_unlocked) == bytes4(0), "E6");
+            require(ParseBTCLib.getTimelock(CT_P_unlocked) == bytes4(0), "CTxP locked");
+            require(ParseBTCLib.getTimelock(CT_V_unlocked) == bytes4(0), "CTxV locked");
 
             // check transactions are well formed
             ParseBTCLib.HTLCData[2] memory htlc;
@@ -162,7 +162,7 @@ contract ALBA {
             ALBAHelper.checkSignaturesEcrecover(CT_P_unlocked, CT_V_unlocked, bridge.fundTxScript, bridge.sighash, bridge.pkPUncompr, bridge.pkVUncompr);         
 
             // Check on the channel balance: e.g., require the balance of P is higher than X, with X = 10 in this example
-            require(htlc[0].value > 10, "E7");
+            require(htlc[0].value > 10, "Prover does not have a sufficient amount of coins");
     
             // update state of the protocol
             state.proofSubmitted = true;
@@ -178,7 +178,7 @@ contract ALBA {
 
     function optimisticSubmitProof(bytes memory sigP, 
                              bytes memory sigV, uint256 seqNumber) external {
-        require(mode != OperationMode.Channel, "E3");
+        require(mode != OperationMode.Channel, "Channel mode active");
         mode = OperationMode.Bridge;
 
         //string memory label = "proofSubmitted";
@@ -206,7 +206,7 @@ contract ALBA {
 
     function dispute(bytes memory CT_P_locked, 
                      bytes memory CT_V_unlocked) external {
-        require(mode != OperationMode.Channel, "E3");
+        require(mode != OperationMode.Channel, "Channel mode active");
         mode = OperationMode.Bridge;
 
         // check that current time is smaller than the timeout defined in Setup, and check proof has not yet been submitted, nor dispute raised
@@ -216,8 +216,8 @@ contract ALBA {
                                                   state.disputeOpened == false)) {
             
             // check commitment transaction of P is locked and commitment transaction of V is unlocked
-            require(ParseBTCLib.getTxTimelock(CT_P_locked) > bridge.timelock + bridge.timelockDisp, "E8"); 
-            require(ParseBTCLib.getTxTimelock(CT_V_unlocked) == uint32(0), "E9"); 
+            require(ParseBTCLib.getTxTimelock(CT_P_locked) > bridge.timelock + bridge.timelockDisp, "CTxP is unlocked or its timelocked is smaller than/equal to T + T_rel"); 
+            require(ParseBTCLib.getTxTimelock(CT_V_unlocked) == uint32(0), "CTxV is locked"); 
 
             // check transactions are well formed
             ParseBTCLib.HTLCData[2] memory htlc;
@@ -225,10 +225,10 @@ contract ALBA {
             ParseBTCLib.OpReturnData memory opreturn;
             (htlc, p2pkh, opreturn) = ALBAHelper.checkTxAreWellFormed(CT_P_locked, CT_V_unlocked, bridge.fundTxScript, bridge.fundTxId);
 
-            require(ALBAHelper.checkSignaturesEcrecover(CT_P_locked, CT_V_unlocked, bridge.fundTxScript, bridge.sighash, bridge.pkPUncompr, bridge.pkVUncompr) == true, "E10");   
+            require(ALBAHelper.checkSignaturesEcrecover(CT_P_locked, CT_V_unlocked, bridge.fundTxScript, bridge.sighash, bridge.pkPUncompr, bridge.pkVUncompr) == true, "Invalid signatures");   
 
             // Check on the channel balance: e.g., require the balance of P is higher than X, with X = 10 in this example
-            require(htlc[0].value > 10, "E11");
+            require(htlc[0].value > 10, "No sufficient amount of coins");
 
             // store balances
             paymentChan.balP = htlc[0].value;
@@ -249,24 +249,24 @@ contract ALBA {
 
     // resolve valid dispute raised by P: V submits the unlocked version of the transaction
     function resolveValidDispute(bytes memory CT_P_unlocked) external {
-        require(mode != OperationMode.Channel, "E3");
+        require(mode != OperationMode.Channel, "Channel mode active");
         mode = OperationMode.Bridge;
 
         if (block.timestamp < (bridge.timelock + bridge.timelockDisp) && (state.coinsLocked == true && state.setupDone == true && state.proofSubmitted == false && state.disputeOpened == true)) {
 
             // check transaction is not locked
-            require(ParseBTCLib.getTimelock(CT_P_unlocked) == bytes4(0), "E5");
+            require(ParseBTCLib.getTimelock(CT_P_unlocked) == bytes4(0), "CTxP locked");
 
             //check transaction spends the funding transaction
-            require(ParseBTCLib.getInputsData(CT_P_unlocked).txid == bridge.fundTxId, "E12");
+            require(ParseBTCLib.getInputsData(CT_P_unlocked).txid == bridge.fundTxId, "CTxP does not spend funding Tx");
 
             // check balance correctness
             ParseBTCLib.HTLCData memory htlc;
             ParseBTCLib.P2PKHData memory p2pkh; 
             ParseBTCLib.OpReturnData memory opreturn;
             (htlc, p2pkh, opreturn) = ParseBTCLib.getOutputsDataLNB(CT_P_unlocked); 
-            require(htlc.value == paymentChan.balP, "E13");
-            require(p2pkh.value == paymentChan.balV, "E14");
+            require(htlc.value == paymentChan.balP, "The value in the HTLC does not corrispond to the value in the HTLC of P's locked transaction");
+            require(p2pkh.value == paymentChan.balV, "The value in the p2pkh does not corrispond to the value in the HTLC of V's unlocked transaction");
 
             //check signature
             ALBAHelper.checkSignatureEcrecover(CT_P_unlocked, bridge.fundTxScript, bridge.sighash, bridge.pkVUncompr);    
@@ -284,7 +284,7 @@ contract ALBA {
 
     // resolve invalid dispute raised by P: V provides the revocation secret for that proves P opened the dispute with an old state
     function resolveInvalidDispute(string memory revSecret) external {
-        require(mode != OperationMode.Channel, "E3");
+        require(mode != OperationMode.Channel, "Channel mode active");
         mode = OperationMode.Bridge;
 
         if (block.timestamp < (bridge.timelock + bridge.timelockDisp) 
@@ -315,11 +315,11 @@ contract ALBA {
         bytes memory _sigP,
         bytes memory _sigV
     ) external {
-        require(fundsSettled == false, "E2");
-        require(mode != OperationMode.Bridge, "E15");
-        require(state.coinsLocked == true, "E16");
-        require(channel.isOpen == false, "E17");
-        require(_balP + _balV == totalSupply, "E18");
+        require(fundsSettled == false, "Funds already settled");
+        require(mode != OperationMode.Bridge, "Bridge mode active");
+        require(state.coinsLocked == true, "Coins are not locked");
+        require(channel.isOpen == false, "Channel already open");
+        require(_balP + _balV == totalSupply, "Balances must equal total supply");
 
         bytes32 message = sha256(
             abi.encodePacked(
@@ -334,7 +334,7 @@ contract ALBA {
         require(
             prover == ECDSA.recover(message, abi.encodePacked(_sigP)) &&
             verifier == ECDSA.recover(message, abi.encodePacked(_sigV)),
-            "E19"
+            "Invalid signatures for channel open"
         );
 
         channel.balP = _balP;
@@ -365,11 +365,11 @@ contract ALBA {
         bytes memory _sigP,
         bytes memory _sigV
     ) external {
-        require(fundsSettled == false, "E2");
-        require(mode != OperationMode.Bridge, "E15");
-        require(channel.isOpen == true, "E20");
-        require(_seqNumber > channel.seqNumber, "E21");
-        require(_balP + _balV == totalSupply, "E18");
+        require(fundsSettled == false, "Funds already settled");
+        require(mode != OperationMode.Bridge, "Bridge mode active");
+        require(channel.isOpen == true, "Channel is not open");
+        require(_seqNumber > channel.seqNumber, "Sequence number not increasing");
+        require(_balP + _balV == totalSupply, "Balances must equal total supply");
 
         // Both parties sign the new state to acknowledge the update.
         bytes32 message = sha256(
@@ -386,7 +386,7 @@ contract ALBA {
         require(
             prover == ECDSA.recover(message, abi.encodePacked(_sigP)) &&
             verifier == ECDSA.recover(message, abi.encodePacked(_sigV)),
-            "E22"
+            "Invalid signatures for channel update"
         );
 
         channel.balP = _balP;
@@ -412,12 +412,12 @@ contract ALBA {
         bytes memory _sigP,
         bytes memory _sigV
     ) external {
-        require(fundsSettled == false, "E2");
-        require(mode != OperationMode.Bridge, "E15");
-        require(channel.isOpen == true, "E20");
+        require(fundsSettled == false, "Funds already settled");
+        require(mode != OperationMode.Bridge, "Bridge mode active");
+        require(channel.isOpen == true, "Channel is not open");
 
         bytes32 providedHash = sha256(abi.encodePacked(_seqNumber, _balP, _balV, _rKey));
-        require(providedHash == channel.latestStateHash, "E23");
+        require(providedHash == channel.latestStateHash, "State does not match latest verified state");
 
         bytes32 message = sha256(
             abi.encodePacked(
@@ -430,10 +430,10 @@ contract ALBA {
         require(
             prover == ECDSA.recover(message, abi.encodePacked(_sigP)) &&
             verifier == ECDSA.recover(message, abi.encodePacked(_sigV)),
-            "E24"
+            "Invalid signatures for channel close"
         );
 
-        require(_balP + _balV == totalSupply, "E25");
+        require(_balP + _balV == totalSupply, "Inconsistent balances");
 
         channel.isOpen = false;
         fundsSettled = true;
@@ -441,9 +441,9 @@ contract ALBA {
         totalSupply = 0;
 
         (bool sentP, ) = prover.call{value: _balP}("");
-        require(sentP, "E26");
+        require(sentP, "Failed to send ETH to prover");
         (bool sentV, ) = verifier.call{value: _balV}("");
-        require(sentV, "E27");
+        require(sentV, "Failed to send ETH to verifier");
 
         emit channelClosed(_seqNumber, _balP, _balV);
         // silence unused warning for supply in case optimizer changes
@@ -451,8 +451,8 @@ contract ALBA {
     }
     
     function settle() external payable {
-        require(fundsSettled == false, "E2");
-        require(mode != OperationMode.Channel, "E3");
+        require(fundsSettled == false, "Funds already settled");
+        require(mode != OperationMode.Channel, "Channel mode active");
         mode = OperationMode.Bridge;
 
         if (state.proofSubmitted == true || (state.disputeOpened == true && state.disputeClosedP == true)) {
@@ -464,9 +464,9 @@ contract ALBA {
             uint256 amtP = (supply * (bridge.balDistr / 100));
             uint256 amtV = supply - amtP;
             (bool sentP, ) = prover.call{value: amtP}("");
-            require(sentP, "E28");
+            require(sentP, "Failed to send ETH");
             (bool sentV, ) = verifier.call{value: amtV}("");
-            require(sentV, "E29");
+            require(sentV, "Failed to send ETH");
 
             emit stateEvent("Valid proof submitted and funds distributed", true);
 
@@ -477,7 +477,7 @@ contract ALBA {
             uint256 supply2 = totalSupply;
             totalSupply = 0;
             (bool sentP, ) = prover.call{value: supply2}("");
-            require(sentP, "E30");
+            require(sentP, "Failed to send ETH");
 
             emit stateEvent("All funds given to P", true);
 
@@ -488,7 +488,7 @@ contract ALBA {
             uint256 supply3 = totalSupply;
             totalSupply = 0;
             (bool sentV, ) = verifier.call{value: supply3}("");
-            require(sentV, "E31");
+            require(sentV, "Failed to send ETH");
 
             emit stateEvent("All funds given to V", true);
 
@@ -500,9 +500,9 @@ contract ALBA {
             uint256 amtV2 = initBalEth[verifier];
             totalSupply = 0;
             (bool sentP, ) = prover.call{value: amtP2}("");
-            require(sentP, "E32");
+            require(sentP, "Failed to send ETH");
             (bool sentV, ) = verifier.call{value: amtV2}("");
-            require(sentV, "E33");
+            require(sentV, "Failed to send ETH");
 
             emit stateEvent("Funds distributed", true);
 

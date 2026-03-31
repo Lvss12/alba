@@ -1,33 +1,10 @@
 pragma solidity ^0.8.9;
 
-library ALBAStorage {
-    bytes32 internal constant STORAGE_SLOT = keccak256("alba.storage.v1");
-
-    struct ALBAParam {
-        bytes32 fundTxId;
-        bytes fundTxScript;
-        bytes4 fundTxIndx;
-        bytes sighash;
-        bytes pkPUncompr;
-        bytes pkVUncompr;
-        uint256 timelock;
-        uint256 timelockDisp;
-        uint256 balDistr;
-    }
+library ALBAStorageV3 {
+    bytes32 internal constant STORAGE_SLOT = keccak256("alba.storage.split.v3");
 
     struct ALBAState {
         bool coinsLocked;
-        bool setupDone;
-        bool proofSubmitted;
-        bool disputeOpened;
-        bool disputeClosedP;
-        bool disputeClosedV;
-    }
-
-    struct PaymentChannel {
-        uint256 balP;
-        uint256 balV;
-        bytes32 rKey;
     }
 
     struct ChannelState {
@@ -47,9 +24,7 @@ library ALBAStorage {
     }
 
     struct Layout {
-        ALBAParam bridge;
         ALBAState state;
-        PaymentChannel paymentChan;
         ChannelState channel;
         OperationMode mode;
         bool fundsSettled;

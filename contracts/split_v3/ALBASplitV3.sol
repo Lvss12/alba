@@ -1,17 +1,13 @@
 pragma solidity ^0.8.9;
 
-import "./ALBAStorage.sol";
+import "./ALBAStorageV3.sol";
 
-contract ALBASplit {
+contract ALBASplitV3 {
     event lockEvent(string label, address addr, uint256 amount);
 
     bytes4 private constant OPEN_SELECTOR = bytes4(keccak256("openChannel(uint256,uint256,bytes32,bytes,bytes)"));
-    bytes4 private constant UPDATE_SELECTOR = bytes4(keccak256("updateChannel(uint256,uint256,uint256,bytes32,bytes,bytes)"));
-    bytes4 private constant CLOSE_SELECTOR = bytes4(keccak256("closeChannel(uint256,uint256,uint256,bytes32,bytes,bytes)"));
 
     address public openFacet;
-    address public updateFacet;
-    address public closeFacet;
     address public owner;
 
     modifier onlyOwner() {
@@ -19,58 +15,38 @@ contract ALBASplit {
         _;
     }
 
-    constructor(
-        address _prover,
-        address _verifier,
-        address _openFacet,
-        address _updateFacet,
-        address _closeFacet
-    ) {
-        ALBAStorage.Layout storage l = ALBAStorage.layout();
+    constructor(address _prover, address _verifier, address _openFacet) {
+        ALBAStorageV3.Layout storage l = ALBAStorageV3.layout();
         l.prover = _prover;
         l.verifier = _verifier;
         openFacet = _openFacet;
-        updateFacet = _updateFacet;
-        closeFacet = _closeFacet;
         owner = msg.sender;
     }
 
     receive() external payable {
-        ALBAStorage.Layout storage l = ALBAStorage.layout();
-        require(l.fundsSettled == false, "E2");
+        ALBAStorageV3.Layout storage l = ALBAStorageV3.layout();
+        require(!l.fundsSettled, "E2");
         l.initBalEth[msg.sender] = msg.value;
-        l.totalSupply = l.totalSupply + msg.value;
+        l.totalSupply += msg.value;
         l.state.coinsLocked = true;
         emit lockEvent("Coins locked!", msg.sender, msg.value);
     }
 
-    function setFacets(address _openFacet, address _updateFacet, address _closeFacet) external onlyOwner {
+    function setOpenFacet(address _openFacet) external onlyOwner {
         require(_openFacet != address(0), "Z0");
-        require(_updateFacet != address(0), "Z1");
-        require(_closeFacet != address(0), "Z2");
         openFacet = _openFacet;
-        updateFacet = _updateFacet;
-        closeFacet = _closeFacet;
     }
 
     function fundsSettled() external view returns (bool) {
-        return ALBAStorage.layout().fundsSettled;
+        return ALBAStorageV3.layout().fundsSettled;
     }
 
     function channel()
         external
         view
-        returns (
-            uint256 balP,
-            uint256 balV,
-            bytes32 rKey,
-            uint256 seqNumber,
-            uint256 lastUpdated,
-            bytes32 latestStateHash,
-            bool isOpen
-        )
+        returns (uint256 balP, uint256 balV, bytes32 rKey, uint256 seqNumber, uint256 lastUpdated, bytes32 latestStateHash, bool isOpen)
     {
-        ALBAStorage.ChannelState storage c = ALBAStorage.layout().channel;
+        ALBAStorageV3.ChannelState storage c = ALBAStorageV3.layout().channel;
         return (c.balP, c.balV, c.rKey, c.seqNumber, c.lastUpdated, c.latestStateHash, c.isOpen);
     }
 
@@ -82,16 +58,6 @@ contract ALBASplit {
 
         if (selector == OPEN_SELECTOR) {
             _delegate(openFacet);
-            return;
-        }
-
-        if (selector == UPDATE_SELECTOR) {
-            _delegate(updateFacet);
-            return;
-        }
-
-        if (selector == CLOSE_SELECTOR) {
-            _delegate(closeFacet);
             return;
         }
 
